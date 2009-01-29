@@ -1,0 +1,74 @@
+#!/bin/bash
+#PBS -l nodes=1:ppn=4
+#PBS -l walltime=0:30:00
+#PBS -N HOMB-SWEEP 
+#PBS -j oe
+#PBS -q debug
+
+# begin job accounting
+ja
+
+# echo each command to batch output
+set -x
+
+# move to submission directory
+cd $PBS_O_WORKDIR
+
+# find number of cores for job
+NCORES=`cat $PBS_NODEFILE | wc -l`
+
+# compute dimensions for large problem size (~25% mem on pople (~.5 GB/node))
+log(){ local x=$1 n=2 l=-1;if [ "$2" != "" ];then n=$x;x=$2;fi;while((x));do let l+=1 x/=n;done;echo $l; }
+arg=`log 4 ${NCORES}`
+let "tmp = 4 ** ${arg}"
+if [ ${tmp} != ${NCORES} ]; then
+  let "rows = 2 ** ${arg} * 8192"
+  let "cols = 2 ** ${arg} * 8192 * 2" 
+else
+  let "rows = 2 ** ${arg} * 8192"
+  let "cols = 2 ** ${arg} * 8192" 
+fi
+
+# set executable name
+exe=homb.ex
+
+# set output file name
+FILENAME=homb-${NCORES}.sweep
+
+# compile executable
+icc -lmpi -openmp -o ${exe} -O3 -ftz -ipo -mtune=itanium2 -fp-speculation=fast src/homb.c
+
+# Make directory for times output
+mkdir -p TIMES_${NCORES}
+
+# Run on 1 Core for reference and to print header
+export OMP_NUM_THREADS=1
+export KMP_LIBRARY="turnaround"
+mpirun -np 1 omplace -nt 1 ./${exe} -NR ${rows} -NC ${cols} -NITER 10 -s -tf TIMES_${NCORES}/1-1.times >> ${FILENAME}
+
+# Loop over number of OpenMP Threads
+for (( nt = 1;nt <= ${NCORES}; nt *= 2 ));do
+
+  # set number of MPI tasks
+  let "np = ${NCORES} / ${nt}"
+
+  # set number of OpenMP threads
+  export OMP_NUM_THREADS=${nt}
+
+  # set OpenMP scheduling style
+  let "chunk = 8"
+  export OMP_SCHEDULE="guided,"${chunk}
+
+  # run with settings and no header on output
+  mpirun -np ${np} omplace -nt ${nt} ./${exe} -NR ${rows} -NC ${cols} -NITER 100 -s -nh -tf TIMES_${NCORES}/${np}-${nt}.times >> ${FILENAME}
+
+done
+
+# archive data
+touch homb.archive
+echo "" >> homb.archive
+echo `date` "   "  $PBS_JOBID >> homb.archive
+cat ${FILENAME} >> homb.archive
+
+# end job acounting, print reports
+ja -chlst

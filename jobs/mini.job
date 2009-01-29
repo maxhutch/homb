@@ -1,0 +1,20 @@
+#!/bin/csh
+#PBS -l nodes=1:ppn=64
+#PBS -l walltime=30:00
+#PBS -N HOMB-tests
+#PBS -j oe
+#PBS -q batch
+
+set echo
+
+cd $PBS_O_WORKDIR
+
+icc -o homb-exp.ex -O3 -ipo -ftz -mtune=itanium2 -lmpi -openmp homb-exp.c
+
+setenv OMP_SCHEDULE "guided,8"
+
+mpirun -np 64 ./homb-exp.ex -NR 65536 -NC 65536 -NITER 100 -f 64-1-delayed.out 
+
+setenv OMP_NUM_THREADS 4
+omplace -nt 4 mpirun -np 16 ./homb-exp.ex -NR 65536 -NC 65536 -NITER 100 -f 16-4-delayed.out
+

@@ -1,0 +1,11 @@
+#============================================================
+# Makefile configuration macros for Ranger
+#                  (Sun Constellation Linux Cluster at TACC)
+# Max Hutchinson (mhutchin@psc.edu)
+# created: 7/30/08
+#============================================================
+
+CC = mpicc
+MPIFLAGS = 
+OMPFLAGS = -mp=numa
+OPTFLAGS = -O3

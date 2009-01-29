@@ -1,0 +1,36 @@
+#!/bin/bash
+#PBS -l nodes=1:ppn=256
+#PBS -l walltime=12:00:00
+#PBS -N QUIVER
+#PBS -j oe
+#PBS -q batch
+
+set -x
+
+# find number of cores for job
+NCORES=`cat $PBS_NODEFILE | wc -l`
+
+# compute dimensions for large problem size (~25% mem on pople (~.5 GB/node))
+log(){ local x=$1 n=2 l=-1;if [ "$2" != "" ];then n=$x;x=$2;fi;while((x));do let l+=1 x/=n;done;echo $l; }
+arg=`log 4 ${NCORES}`
+let "tmp = 4 ** ${arg}"
+if [ ${tmp} != ${NCORES} ]; then
+  let "rows = 2 ** ${arg} * 8192"
+  let "cols = 2 ** ${arg} * 8192 * 2" 
+else
+  let "rows = 2 ** ${arg} * 8192"
+  let "cols = 2 ** ${arg} * 8192" 
+fi
+
+cd $PBS_O_WORKDIR
+
+mpirun -np 1 ./quiver.ex -NRC $cols -NITER 10 -s
+mpirun -np 1 ./quiver.ex -NRC $cols -NITER 10 -s -disorder
+
+mpirun -np $NCORES ./quiver.ex -NRC $cols -NITER 100 -s
+mpirun -np $NCORES ./quiver.ex -NRC $cols -NITER 100 -s -disorder
+mpirun -np $NCORES ./quiver.ex -NRC $cols -NITER 100 -s -shuffle
+mpirun -np $NCORES ./quiver.ex -NRC $cols -NITER 100 -s -disorder -shuffle
+
+omplace -nt ${NCORES} mpirun -np 1 ./quiver.ex -NRC $cols -NITER 100 -s
+omplace -nt ${NCORES} mpirun -np 1 ./quiver.ex -NRC $cols -NITER 100 -s -disorder

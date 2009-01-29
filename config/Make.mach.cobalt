@@ -1,0 +1,10 @@
+#==============================================================
+# Makefile configuration macros for Cobalt (Altix 3700 at NCSA)
+# Max Hutchinson (mhutchin@psc.edu)
+# created: 7/28/08
+#==============================================================
+
+CC = icc
+MPIFLAGS = -lmpi
+OMPFLAGS = -openmp
+OPTFLAGS = -ftz -ipo -mtune=itanium2 -O3 -fp-speculation=fast

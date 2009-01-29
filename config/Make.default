@@ -1,0 +1,10 @@
+#============================================================
+# Makefile configuration macros defaults
+# Max Hutchinson (mhutchin@psc.edu)
+# created: 7/26/08
+#============================================================
+
+CC = cc
+MPIFLAGS = -lmpi
+OMPFLAGS = -openmp
+OPTFLAGS = -O3

@@ -1,0 +1,12 @@
+#====================================================================
+# Makefile configuration macros for Muir (4 Node Xeon Cluster at PSC)
+# Max Hutchinson (mhutchin@psc.edu)
+# created: 7/28/08
+#====================================================================
+
+CC = icc
+MPIFLAGS = -I/usr/local/packages/mvapich2/include -I/usr/include \
+           -D_EM64T_ -D_SMP_ -DUSE_HEADER_CACHING -DONE_SIDED -DMPIDI_CH3_CHANNEL_RNDV -DMPID_USE_SEQUENCE_NUMBERS -DRDMA_CM \
+           -L/usr/local/packages/mvapich2/lib -Wl,-rpath -Wl,/usr/local/packages/mvapich2/lib -lmpich -L/usr/lib64 -lrdmacm -libverbs -libumad -lpthread -lrt
+OMPFLAGS = -openmp
+OPTFLAGS = -ftz -ipo -O3

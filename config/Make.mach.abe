@@ -1,0 +1,11 @@
+#============================================================
+# Makefile configuration macros for Abe
+#                  (Dell Intel 64 Linux Cluster at NCSA)
+# Max Hutchinson (mhutchin@psc.edu)
+# created: 8/4/2008
+#============================================================
+
+CC = mpicc
+MPIFLAGS = 
+OMPFLAGS = -openmp
+OPTFLAGS = -O3 -ipo

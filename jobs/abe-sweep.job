@@ -1,0 +1,55 @@
+#!/bin/bash    
+# Usage: ./ranger.job NCORES
+# Note: NCORES must be a power of 2 greater than or equal to 16 (machine restrictions)
+
+# Get the number of cores from command line
+NCORES=$1
+
+# compute dimensions for large problem size (~.5 GB/node)
+log(){ local x=$1 n=2 l=-1;if [ "$2" != "" ];then n=$x;x=$2;fi;while((x));do let l+=1 x/=n;done;echo $l; }
+arg=`log 4 ${NCORES}`
+let "tmp = 4 ** ${arg}"
+if [ ${tmp} != ${NCORES} ]; then
+  let "rows = 2 ** ${arg} * 8192"
+  let "cols = 2 ** ${arg} * 8192 * 2"
+else
+  let "rows = 2 ** ${arg} * 8192"
+  let "cols = 2 ** ${arg} * 8192"
+fi
+
+# Compile executable
+mpicc -o homb.ex -O3 -openmp -ipo src/homb.c
+
+mkdir -p TIMES_${NCORES}
+#
+let "node = ${NCORES} / 8"
+for (( nt = 1; nt <= 8; nt *= 2))
+do
+  let "np = ${NCORES} / ${nt}"
+  let "ppn = 8 / ${nt}"
+
+  echo "#!/bin/bash " > sub.job
+  echo "#PBS -j oe " >> sub.job
+  echo "#PBS -N HOMB-${np}-${nt} " >> sub.job
+  echo "#PBS -l nodes=${node}:ppn=${ppn} " >> sub.job
+  echo "#PBS -q normal " >> sub.job
+  echo "#PBS -l walltime=2:00:00 " >> sub.job
+  echo "#PBS -V " >> sub.job
+  echo " " >> sub.job
+  echo "set -x " >> sub.job
+  echo "cd $""PBS_O_WORKDIR" >> sub.job
+  echo "mvapich2-start-mpd " >> sub.job
+  if [ ${nt} = 1 ]; then
+    echo "export OMP_NUM_THREADS=1 " >> sub.job
+    echo "mpirun -np 1 ./homb.ex -NRC 8192 -NITER 10 -s -tf TIMES_${NCORES}/homb-${np}-${nt}.times > homb-${np}-${nt}.out " >> sub.job
+  fi
+  echo "export OMP_NUM_THREADS=${nt} " >> sub.job
+  echo -e "export OMP_SCHEDULE=\"guided,8\" " >> sub.job
+  echo "mpirun -np ${np} ./homb.ex -NR ${rows} -NC ${cols} -NITER 100 -s -nh -tf TIMES_${NCORES}/homb-${np}-${nt}.times >> homb-${np}-${nt}.out " >> sub.job
+  echo " " >> sub.job
+  echo -e "echo \"\" >> homb.archive " >> sub.job
+  echo "date >> homb.archive " >> sub.job
+  echo "cat homb-${np}-${nt}.out >> homb.archive " >> sub.job
+
+  qsub sub.job
+done

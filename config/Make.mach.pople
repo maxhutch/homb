@@ -1,0 +1,10 @@
+#============================================================
+# Makefile configuration macros for Pople (Altix 4700 at PSC)
+# Max Hutchinson (mhutchin@psc.edu)
+# created: 7/26/08
+#============================================================
+
+CC = icc
+MPIFLAGS = -lmpi
+OMPFLAGS = -openmp
+OPTFLAGS = -ftz -ipo -mtune=itanium2 -O3 -fp-speculation=fast

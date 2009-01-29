@@ -1,0 +1,68 @@
+#!/bin/bash
+# set ncpus and mem here.  mem should be > ncpus * 600mb for the given test
+#PBS -l ncpus=64
+#PBS -l mem=40000mb
+#PBS -l walltime=1:30:00
+#PBS -q standard
+#PBS -N HOMB 
+#PBS -j oe
+#PBS -m be
+
+# echo each command to batch output
+set -x
+
+# move to submission directory
+cd $PBS_O_WORKDIR
+
+# compute dimensions for large problem size (~25% mem on pople (~.5 GB/node))
+log(){ local x=$1 n=2 l=-1;if [ "$2" != "" ];then n=$x;x=$2;fi;while((x));do let l+=1 x/=n;done;echo $l; }
+arg=`log 4 ${NCPUS}`
+let "tmp = 4 ** ${arg}"
+if [ ${tmp} != ${NCPUS} ]; then
+  let "rows = 2 ** ${arg} * 8192"
+  let "cols = 2 ** ${arg} * 8192 * 2" 
+else
+  let "rows = 2 ** ${arg} * 8192"
+  let "cols = 2 ** ${arg} * 8192" 
+fi
+
+# set executable name
+exe=homb.ex
+
+# set output file name
+FILENAME=homb-${NCPUS}.sweep
+
+# compile executable
+icc -lmpi -openmp -o ${exe} -O3 -ftz -ipo -mtune=itanium2 -fp-speculation=fast homb.c
+export MPI_OPENMP_INTEROP=true
+
+# make directory for times output
+mkdir -p TIMES_${NCPUS}
+
+# run on 1 core for reference
+export OMP_NUM_THREADS=1
+mpirun -np 1 ./${exe} -NR ${rows} -NC ${cols} -NITER 10 -s -tf TIMES_${NCPUS}/1-1.times >> ${FILENAME}
+
+# Loop over number of OpenMP Threads
+for (( nt = 1;nt <= ${NCPUS}; nt *= 2 ));do
+
+  # set number of MPI tasks
+  let "np = ${NCPUS} / ${nt}"
+
+  # set number of OpenMP threads
+  export OMP_NUM_THREADS=${nt}
+
+  # set OpenMP scheduling style
+  let "chunk = 8"
+  export OMP_SCHEDULE="guided,"${chunk}
+
+  # run with settings
+  mpirun -np ${np}  ./${exe} -NR ${rows} -NC ${cols} -NITER 100 -s -nh -tf TIMES_${NCPUS}/${np}-${nt}.times >> ${FILENAME}
+
+done
+
+# archive data
+touch homb.archive
+echo "" >> homb.archive
+date >> homb.archive
+cat ${FILENAME} >> homb.archive
