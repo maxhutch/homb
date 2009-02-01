@@ -33,16 +33,17 @@ do
   echo "#$ -N HOMB-${np}-${nt} " >> sub.job
   echo "#$ -o $""JOB_NAME.o""$""JOB_ID " >> sub.job
   echo "#$ -pe ${way}way ${NCORES} " >> sub.job
-  echo "#$ -q normal " >> sub.job
+  echo "#$ -q development " >> sub.job
   echo "#$ -l h_rt=00:30:00 " >> sub.job
+  echo "#$ -A TG-ASC080060N " >> sub.job
   echo " " >> sub.job
   echo "set -x " >> sub.job
   echo "export MV2_ENABLE_AFFINITY=0 " >> sub.job
-  echo "export OMP_NUM_THREADS=1 " >> sub.job
-  echo "ibrun -np 1 ./homb.ex -NRC 8192 -NITER 10 -s > homb-${np}-${nt}.out " >> sub.job
+  #echo "export OMP_NUM_THREADS=1 " >> sub.job
+  #echo "ibrun ./homb.ex -NRC 8192 -NITER 10 -s > homb-${np}-${nt}.out " >> sub.job
   echo "export OMP_NUM_THREADS=${nt} " >> sub.job
   echo -e "export OMP_SCHEDULE=\"guided,8\" " >> sub.job
-  echo "ibrun -np ${np} ./homb.ex -NR ${rows} -NC ${cols} -NITER 100 -s -nh >> homb-${np}-${nt}.out " >> sub.job
+  echo "ibrun ./homb.ex -NR ${rows} -NC ${cols} -NITER 100 -s -nh >> homb-${np}-${nt}.out " >> sub.job
   echo " " >> sub.job
   echo -e "echo \"\" >> homb.archive " >> sub.job
   echo "date >> homb.archive " >> sub.job
