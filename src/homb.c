@@ -39,6 +39,7 @@ Code History:
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include <float.h>
 
 /* Book-keeping */
 #define DOWN 100
@@ -130,7 +131,7 @@ int main(int argc, char *argv[]) {
 
   /* Timing measurements */
   double startTime, endTime;
-  double meanTime = 0., minTime = HUGE, maxTime = 0.;
+  double meanTime = 0., minTime = FLT_MAX, maxTime = 0.;
   double stdvTime = 0., NstdvTime = 0.;
 
   /* Iterators */
@@ -247,9 +248,10 @@ void initContext(int argc, char *argv[]){
   barrier = 0; reduce = 1;
   /* Default required values */
   NR = 8192; NC = 8192; NITER = 20; EXTRA = 0;  nThreads = 1; nPEs = 1;
-
+  /* indexs */
+  int i;
   /* Cycle through command line args */
-  for (int i = 1; i < argc; i++){  
+  for (i = 1; i < argc; i++){  
     /* Look for number of rows */
     if ( strcmp("-NR", argv[i]) == 0 ){
       sscanf(argv[i+1],"%d",&NR);
@@ -486,7 +488,7 @@ float work(float ***t, int *new, int myPE,
   /* Indicies */
   int old = 1 - *new;
   /* Iterators */
-  int i, j;
+  int i, j, k;
   		
   /* Begin parallel region if there are more than 1 thread per task */
   #pragma omp parallel if (nThreads != 1) shared(t, new, old, nrl, dt, NR, NC, NITER) private(d)
@@ -495,7 +497,7 @@ float work(float ***t, int *new, int myPE,
     #pragma omp master
     {
       /* Loop over top and bottom boundry */
-      for (int k = 1; k <= NC; k++){
+      for (k = 1; k <= NC; k++){
         /*Calculate average of neighbors as new value (Point Jacobi method) */
         t[*new][1][k] = 0.25 *
                         (t[old][2][k] + t[old][0][k] +
@@ -577,6 +579,7 @@ void sumTrace(float ***t, int new, int myPE, float *sum) {
 }
 
 void timeUpdate(double **times, int myPE){
+  int iPE;
   /* Update Root's times matrix to include all times */
   if (myPE != ROOT){
     MPI_Request req;
@@ -594,7 +597,7 @@ void timeUpdate(double **times, int myPE){
     MPI_Status rootStatus[nPEs];    
 
     /* Recieving times from other tasks */ 
-    for (int iPE = 1; iPE < nPEs; iPE++){
+    for (iPE = 1; iPE < nPEs; iPE++){
       MPI_Irecv(&times[iPE][0], NITER, MPI_DOUBLE,
                 MPI_ANY_SOURCE, iPE, MPI_COMM_WORLD, &rootRequest[iPE]);
       MPI_Wait(&rootRequest[iPE], &rootStatus[iPE]);
@@ -606,10 +609,10 @@ void statistics(double **times, double **covar,
                 double *minTime, double *meanTime, double *maxTime,
                 double *stdvTime, double *NstdvTime){
   double temp;
-
+  int iPE, iter;
   /* Compute mean, max, min of times */
-  for (int iPE = 0; iPE < nPEs; iPE++)
-    for (int iter=5; iter<NITER; iter++){
+  for (iPE = 0; iPE < nPEs; iPE++)
+    for (iter=5; iter<NITER; iter++){
       *meanTime += times[iPE][iter];
       *maxTime = MAX(*maxTime, times[iPE][iter]);
       *minTime = MIN(*minTime, times[iPE][iter]);
@@ -617,8 +620,8 @@ void statistics(double **times, double **covar,
   *meanTime = *meanTime / (NITER - 5) / nPEs;
 
   /* Compute standard deviation of times */
-  for (int iPE = 0; iPE < nPEs; iPE++)
-    for (int iter = 5; iter < NITER; iter++){
+  for (iPE = 0; iPE < nPEs; iPE++)
+    for (iter = 5; iter < NITER; iter++){
       *stdvTime += (times[iPE][iter] - *meanTime) *
                    (times[iPE][iter] - *meanTime);
     }

@@ -1,0 +1,13 @@
+#====================================================================
+# Makefile configuration macros for Muir (4 Node Xeon Cluster at PSC)
+# Max Hutchinson (mhutchin@psc.edu)
+# created: 7/28/08
+#====================================================================
+
+CC = icc
+MPIFLAGS = -I/usr/local/packages/mpi/intel/openmpi-1.2.6/include -pthread \
+           -L/usr/local/packages/mpi/intel/openmpi-1.2.6/lib64 -lmpi \
+           -lopen-rte -lopen-pal -ldl -Wl,--export-dynamic -lnsl -lutil
+
+OMPFLAGS = -openmp
+OPTFLAGS = -ftz -ipo -O3
